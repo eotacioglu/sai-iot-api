@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const { User } = require("./schemas/User");
 const { Device } = require("./schemas/Device");
 const { Process } = require("./schemas/Process");
+const { DeviceProcess } = require("./schemas/DeviceProcess");
 const cors = require("cors");
 require("dotenv").config();
 
@@ -29,10 +30,16 @@ const wss = new WebSocket.Server({ server });
 
 let clients = []; // Bağlı WebSocket istemcilerini saklamak için
 
-wss.on("connection", (ws) => {
+wss.on("connection", async (ws) => {
     console.log("🔌 Yeni istemci bağlandı");
     clients.push(ws);
-
+    let data = await DeviceProcess.find().populate('user').populate('device').exec();
+    // Tüm bağlı istemcilere mesaj gönder
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify({ message: "Process koleksiyonunda değişiklik var", data: data }));
+        }
+    });
     ws.on("close", () => {
         console.log("❌ İstemci bağlantısı kesildi");
         clients = clients.filter(client => client !== ws);
@@ -40,14 +47,15 @@ wss.on("connection", (ws) => {
 });
 
 // 🟢 MongoDB Change Stream ile değişiklikleri dinle
-const changeStream = Process.watch();
-changeStream.on("change", (change) => {
-    console.log("🔄 Process koleksiyonunda değişiklik oldu:", change);
+const changeStream = DeviceProcess.watch();
+changeStream.on("change", async (change) => {
 
+    console.log("🔄 Process koleksiyonunda değişiklik oldu:", change);
+    let data = await DeviceProcess.find().populate('user').populate('device').exec();
     // Tüm bağlı istemcilere mesaj gönder
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ message: "Process koleksiyonunda değişiklik var", data: change }));
+            client.send(JSON.stringify({ message: "Process koleksiyonunda değişiklik var", data: data }));
         }
     });
 });
@@ -56,6 +64,7 @@ changeStream.on("change", (change) => {
 app.get("/devices", async (req, res) => {
     try {
         const devices = await Device.find();
+        console.log(devices[ 0 ].isActive);
         res.json(devices);
     } catch (err) {
         res.status(500).json({ message: "Sunucu hatası" });
