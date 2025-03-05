@@ -7,6 +7,9 @@ const { User } = require("./schemas/User");
 const { Device } = require("./schemas/Device");
 const { Process } = require("./schemas/Process");
 const { DeviceProcess } = require("./schemas/DeviceProcess");
+const xlsx = require("xlsx");
+const { OperationsSections } = require("./schemas/OperationsSections");
+const { Operations } = require("./schemas/Operations");
 const cors = require("cors");
 require("dotenv").config();
 
@@ -16,9 +19,12 @@ const DB_HOST = 'sai-iot-db-service';
 const DB_PORT = '27017';
 const DB_NAME = 'sai-iot-db';
 const mongoURI = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}?authSource=admin&replicaSet=rs0`;// MongoDB bağlantı adresi
-mongoose.connect(mongoURI)
-    .then(() => console.log("📦 MongoDB'ye bağlandı"))
-    .catch(err => console.error("MongoDB bağlantı hatası:", err));
+mongoose.connect(mongoURI).then(async () => {
+    console.log("MongoDB bağlantısı başarılı");
+}).catch(err => {
+    console.error("Bağlantı hatası:", err);
+    mongoose.connection.close();
+});
 
 const app = express();
 app.use(express.json());
