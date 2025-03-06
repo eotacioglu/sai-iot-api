@@ -34,7 +34,8 @@ mongoose.connect(mongoURI).then(async () => {
         console.log(`Satır ${i}:`, row);  // Satır içeriğini logla
 
         const sectionName = String(row[ 0 ] || "").trim();  // 🔥 B sütunu yerine A sütunu (row[0])
-        const orderDesc = row[ 1 ] || "";    // 🔥 C sütunu yerine B sütunu (row[1])
+        const orderDesc = row[ 1 ] || "";  
+        const operationCode = parseInt(orderDesc, 10) || 0;  // 🔥 C sütunu yerine B sütunu (row[1])
         const name = row[ 2 ] || "";         // 🔥 D sütunu yerine C sütunu (row[2])
         const defaultTime = row[ 3 ] || 0;   // 🔥 E sütunu yerine D sütunu (row[3])
 
@@ -49,6 +50,7 @@ mongoose.connect(mongoURI).then(async () => {
         operations.push({
             section: section._id,
             orderDesc,
+            operationCode,
             name,
             defaultTime: Number(defaultTime) || 0,
         });

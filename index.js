@@ -21,6 +21,7 @@ const DB_NAME = 'sai-iot-db';
 const mongoURI = `mongodb://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}?authSource=admin&replicaSet=rs0`;// MongoDB bağlantı adresi
 mongoose.connect(mongoURI).then(async () => {
     console.log("MongoDB bağlantısı başarılı");
+
 }).catch(err => {
     console.error("Bağlantı hatası:", err);
     mongoose.connection.close();
@@ -70,7 +71,7 @@ changeStream.on("change", async (change) => {
 app.get("/devices", async (req, res) => {
     try {
         const devices = await Device.find();
-        console.log(devices[ 0 ].isActive);
+        console.log(devices[0].isActive);
         res.json(devices);
     } catch (err) {
         res.status(500).json({ message: "Sunucu hatası" });
@@ -131,19 +132,21 @@ app.get("/users", async (req, res) => {
 
 app.get('/processes', async (req, res) => {
     try {
-        const { date } = req.query;
-        if (!date) {
-            return res.status(400).json({ error: "Lütfen bir tarih belirtin (YYYY-MM-DD)!" });
-        }
+        // const { date } = req.query;
+        // if (!date) {
+        //     return res.status(400).json({ error: "Lütfen bir tarih belirtin (YYYY-MM-DD)!" });
+        // }
 
-        const startDate = new Date(date);
-        startDate.setHours(0, 0, 0, 0);
-        const endDate = new Date(startDate);
-        endDate.setDate(startDate.getDate() + 1);
+        // const startDate = new Date(date);
+        // startDate.setHours(0, 0, 0, 0);
+        // const endDate = new Date(startDate);
+        // endDate.setDate(startDate.getDate() + 1);
 
-        const processes = await Process.find({
-            time: { $gte: startDate, $lt: endDate }
-        });
+        // const processes = await Process.find({
+        //     time: { $gte: startDate, $lt: endDate }
+        // });
+
+        const processes = await Process.find();
 
         res.json(processes);
     } catch (error) {
