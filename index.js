@@ -10,6 +10,8 @@ const usersRoutes = require("./routes/user_routes");
 const deviceRoutes = require("./routes/device_routes");
 const processRoutes = require("./routes/process_routes");
 const operationsSectionsRoutes = require("./routes/operation_section_routes");
+const conveyorRoutes = require("./routes/conveyor_routes");
+const performance_reports_routes = require("./routes/performance_reports_routes");
 const xlsx = require("xlsx");
 
 const cors = require("cors");
@@ -75,6 +77,9 @@ app.use("/users", usersRoutes);
 app.use("/devices", deviceRoutes);
 app.use("/processes", processRoutes);
 app.use("/operationSections", operationsSectionsRoutes);
+app.use("/conveyors", conveyorRoutes);
+app.use("/conveyors", conveyorRoutes);
+app.use("/performance-reports", performance_reports_routes);
 
 // 📌 API Endpoint'leri
 

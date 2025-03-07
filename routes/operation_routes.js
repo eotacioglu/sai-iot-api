@@ -1,8 +1,18 @@
 // routes/operationsRoutes.js
 const express = require("express");
-const {Operations} = require("../schemas/Operations"); // Operations modelini içe aktar
+const { Operations } = require("../schemas/Operations"); // Operations modelini içe aktar
 
 const router = express.Router();
+
+
+router.get("/", async (req, res) => {
+    try {
+        const operations = await Operations.find().populate('section');
+        res.json(operations);
+    } catch (err) {
+        res.status(500).json({ message: "Sunucu hatası" });
+    }
+});
 
 // Yeni operasyon ekleme
 router.post("/", async (req, res) => {

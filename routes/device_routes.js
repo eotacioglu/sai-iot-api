@@ -1,5 +1,5 @@
 const express = require("express");
-const {Device} = require("../schemas/Device"); // Operations modelini içe aktar
+const { Device } = require("../schemas/Device"); // Operations modelini içe aktar
 
 const router = express.Router();
 
@@ -7,17 +7,18 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
     try {
-        const devices = await Device.find();
+        const devices = await Device.find().populate('conveyor');
         console.log(devices[0].isActive);
         res.json(devices);
     } catch (err) {
         res.status(500).json({ message: "Sunucu hatası" });
     }
 });
+
 router.post("/update", async (req, res) => {
     try {
 
-        const { _id, deviceName } = req.body; // JSON'dan id, name ve cardId al
+        const { _id, deviceName, conveyor } = req.body; // JSON'dan id, name ve cardId al
 
         if (!_id) {
             return res.status(400).json({ error: "Güncelleme için ID gereklidir" });
@@ -25,7 +26,7 @@ router.post("/update", async (req, res) => {
 
         const updatedDevice = await Device.findByIdAndUpdate(
             _id,
-            { deviceName },
+            { deviceName, conveyor: conveyor._id },
             { new: true } // Güncellenmiş veriyi döndür
         );
 
