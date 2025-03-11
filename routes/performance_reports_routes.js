@@ -2,6 +2,7 @@
 const express = require("express");
 const { Process } = require("../schemas/Process"); // Operations modelini içe aktar
 const { Device } = require("../schemas/Device"); // Operations modelini içe aktar
+const { Conveyor } = require("../schemas/Conveyor"); // Operations modelini içe aktar
 
 const router = express.Router();
 // gün süresi	:	540 dk
@@ -85,6 +86,51 @@ router.get("/", async (req, res) => {
         res.status(500).json({ message: "Sunucu hatası" });
     }
 });
+
+router.get("/dashboard", async (req, res) => {
+    let allCompanyQuantity = 0;
+    let conveyorMap = {};
+
+    try {
+        // Önce tüm bantları çekelim
+        const allConveyors = await Conveyor.find(); // Conveyor modelinin adını senin yapına göre düzenle
+        const allProcess = await Process.find();
+
+        // Önce tüm bantları 0 processCount ile ekleyelim
+        allConveyors.forEach(conveyor => {
+            conveyorMap[conveyor.name] = {
+                conveyor: conveyor.name,
+                processCount: 0,
+            };
+        });
+
+        // Şimdi process'leri ekleyelim
+        for (let i = 0; i < allProcess.length; i++) {
+            allCompanyQuantity += allProcess[i].processCount;
+
+            let device = await Device.findOne({ deviceId: allProcess[i].device.deviceId }).populate("conveyor");
+
+            if (device && device.conveyor) {
+                let conveyorName = device.conveyor.name;
+
+                // ProcessCount'u artır
+                conveyorMap[conveyorName].processCount += allProcess[i].processCount;
+            }
+        }
+
+        // Objeyi array'e çevirme
+        let conveyorAllProcessList = Object.values(conveyorMap);
+
+        res.json({
+            allCompanyQuantity: allCompanyQuantity,
+            conveyorAllProcessList: conveyorAllProcessList,
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Sunucu hatası" });
+    }
+});
+
+
 
 
 

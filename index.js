@@ -44,7 +44,17 @@ let clients = []; // Bağlı WebSocket istemcilerini saklamak için
 wss.on("connection", async (ws) => {
     console.log("🔌 Yeni istemci bağlandı");
     clients.push(ws);
-    let data = await DeviceProcess.find().populate('user').populate('device').exec();
+    let data = await DeviceProcess.find()
+        .populate('user') // user referansını doldur
+        .populate({
+            path: 'operation', // Önce device'ı doldur
+            populate: { path: 'section' } // Sonra device içindeki conveyor'u doldur
+        })
+        .populate({
+            path: 'device', // Önce device'ı doldur
+            populate: { path: 'conveyor' } // Sonra device içindeki conveyor'u doldur
+        })
+        .exec();
     // Tüm bağlı istemcilere mesaj gönder
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -59,10 +69,32 @@ wss.on("connection", async (ws) => {
 
 // 🟢 MongoDB Change Stream ile değişiklikleri dinle
 const changeStream = DeviceProcess.watch();
-changeStream.on("change", async (change) => {
+// changeStream.on("change", async (change) => {
 
+//     console.log("🔄 Process koleksiyonunda değişiklik oldu:", change);
+//     let data = await DeviceProcess.find().populate('user').populate('device').exec();
+//     // Tüm bağlı istemcilere mesaj gönder
+//     clients.forEach(client => {
+//         if (client.readyState === WebSocket.OPEN) {
+//             client.send(JSON.stringify({ message: "Process koleksiyonunda değişiklik var", data: data }));
+//         }
+//     });
+// });
+changeStream.on("change", async (change) => {
     console.log("🔄 Process koleksiyonunda değişiklik oldu:", change);
-    let data = await DeviceProcess.find().populate('user').populate('device').exec();
+
+    let data = await DeviceProcess.find()
+        .populate('user') // user referansını doldur
+        .populate({
+            path: 'operation', // Önce device'ı doldur
+            populate: { path: 'section' } // Sonra device içindeki conveyor'u doldur
+        })
+        .populate({
+            path: 'device', // Önce device'ı doldur
+            populate: { path: 'conveyor' } // Sonra device içindeki conveyor'u doldur
+        })
+        .exec();
+
     // Tüm bağlı istemcilere mesaj gönder
     clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
@@ -70,6 +102,7 @@ changeStream.on("change", async (change) => {
         }
     });
 });
+
 
 
 app.use("/operations", operationsRoutes);
