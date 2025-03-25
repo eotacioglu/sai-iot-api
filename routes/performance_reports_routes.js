@@ -96,6 +96,9 @@ router.get("/dashboard", async (req, res) => {
     let allLostMinutes = 0;
     let allActiveMinutes = 0;
     let allTotalMinutes = 0;
+    let userMap = {};
+    let operationMap = {};
+    let deviceMap = {};
 
     try {
         // Önce tüm bantları çekelim
@@ -254,17 +257,86 @@ router.get("/dashboard", async (req, res) => {
         }
 
 
+//şimdi buraya tüm kullancıların toplam çalışma sayılarını ve hangi operasyonda ne kadar iş yaptıklarını gösteren datayı ekleyelim
+        for (let i = 0; i < allProcess.length; i++) {
+            let user = allProcess[i].user;
+        
+            if (!userMap[user.name]) {
+                userMap[user.name] = {
+                    name: user.name,
+                    processCount: 0,
+                    processList: []
+                };
+            }
+        
+            userMap[user.name].processCount += allProcess[i].processCount;
+        
+            // Check if the operation already exists in the array
+            let existingOpIndex = userMap[user.name].processList.findIndex(
+                op => op.name === allProcess[i].operation.name
+            );
+        
+            if (existingOpIndex !== -1) {
+                // If operation exists, update its count
+                userMap[user.name].processList[existingOpIndex].count += allProcess[i].processCount;
+            } else {
+                // If operation doesn't exist, add it to the array
+                userMap[user.name].processList.push({
+                    name: allProcess[i].operation.name,
+                    count: allProcess[i].processCount
+                });
+            }
+        }
 
+        
+   
+        
+//şimdi buraya tüm operasyonların toplam çalışma sayılarını gösteren datayı ekleyelim
+        for (let i = 0; i < allProcess.length; i++) {
+            let operation = allProcess[i].operation;
+        
+            if (!operationMap[operation.name]) {
+                operationMap[operation.name] = {
+                    name: operation.name,
+                    processCount: 0
+                };
+            }
+        
+            operationMap[operation.name].processCount += allProcess[i].processCount;
+        }
        
+//şimdi buraya tüm cihazların toplam çalışma sayılarını gösteren datayı ekleyelim
+        for (let i = 0; i < allProcess.length; i++) {
+            let device = await Device.findOne({ deviceId: allProcess[i].device.deviceId }).populate("conveyor");
+        
+            if (device) {
+                if (!deviceMap[device.deviceId]) {
+                    deviceMap[device.deviceId] = {
+                        deviceId: device.deviceId,
+                        deviceName: device.deviceName,
+                        conveyor: device.conveyor.name,
+                        processCount: 0
+                    };
+                }
+        
+                deviceMap[device.deviceId].processCount += allProcess[i].processCount;
+            }}
 
         // Objeyi array'e çevirme
         let conveyorAllProcessList = Object.values(conveyorMap);
+        let userAllProcessList = Object.values(userMap);
+        let operationAllProcessList = Object.values(operationMap);
+        let deviceAllProcessList = Object.values(deviceMap);
 
         res.json({
             allCompanyQuantity: allCompanyQuantity,
             conveyorAllProcessList: conveyorAllProcessList,
-            allDeciessCount: allDevices.length,
-            activeDeciessCount: allDevices.filter(device => device.isActive === true).length,
+            userAllProcessList: userAllProcessList,
+            operationAllProcessList,
+            deviceAllProcessList,
+            
+            allDevicesCount: allDevices.length,
+            activeDevicesCount: allDevices.filter(device => device.isActive === true).length,
             deactiveDeciessCount: allDevices.filter(device => device.isActive === false).length,
             allUserCount: allUsers.length,
             allOperationsCount: alloperations.length,
