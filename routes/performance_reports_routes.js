@@ -3,6 +3,8 @@ const express = require("express");
 const { Process } = require("../schemas/Process"); // Operations modelini içe aktar
 const { Device } = require("../schemas/Device"); // Operations modelini içe aktar
 const { Conveyor } = require("../schemas/Conveyor"); // Operations modelini içe aktar
+const { User } = require("../schemas/User"); // Operations modelini içe aktar
+const { Operations } = require("../schemas/Operations"); // Operations modelini içe aktar
 
 const router = express.Router();
 // gün süresi	:	540 dk
@@ -77,6 +79,7 @@ router.get("/", async (req, res) => {
             performance.processTime = totalMinutes;
             performance.lostMinutes = lostMinutes;
             performance.activeMinutes = activeMinutes;
+            performance.createdDate = process[i].time;
 
 
             performanceList.push(performance);
@@ -90,11 +93,17 @@ router.get("/", async (req, res) => {
 router.get("/dashboard", async (req, res) => {
     let allCompanyQuantity = 0;
     let conveyorMap = {};
+    let allLostMinutes = 0;
+    let allActiveMinutes = 0;
+    let allTotalMinutes = 0;
 
     try {
         // Önce tüm bantları çekelim
         const allConveyors = await Conveyor.find(); // Conveyor modelinin adını senin yapına göre düzenle
         const allProcess = await Process.find();
+        const allDevices = await Device.find();
+        const allUsers = await User.find();
+        const alloperations = await Operations.find().populate("section");
 
         // Önce tüm bantları 0 processCount ile ekleyelim
         allConveyors.forEach(conveyor => {
@@ -117,6 +126,136 @@ router.get("/dashboard", async (req, res) => {
                 conveyorMap[conveyorName].processCount += allProcess[i].processCount;
             }
         }
+        // Processs içerisindeki banatlara göre kaç adet operasyon var her operasyonun adet sayısı
+        for (let i = 0; i < allProcess.length; i++) {
+            let device = await Device.findOne({ deviceId: allProcess[i].device.deviceId }).populate("conveyor");
+        
+            if (device && device.conveyor) {
+                let conveyorName = device.conveyor.name;
+        
+                if (!conveyorMap[conveyorName].processList) {
+                    conveyorMap[conveyorName].processList = [];
+                }
+        
+                // Check if the operation already exists in the array
+                let existingOpIndex = conveyorMap[conveyorName].processList.findIndex(
+                    op => op.name === allProcess[i].operation.name
+                );
+        
+                if (existingOpIndex !== -1) {
+                    // If operation exists, update its count
+                    conveyorMap[conveyorName].processList[existingOpIndex].count += allProcess[i].processCount;
+                } else {
+                    // If operation doesn't exist, add it to the array
+                    conveyorMap[conveyorName].processList.push({
+                        name: allProcess[i].operation.name,
+                        count: allProcess[i].processCount
+                    });
+                }
+            }
+        }
+
+        //Her bir bant için çalışan operatör sayısını da getirelim
+        for (let i = 0; i < allProcess.length; i++) {
+            let device = await Device.findOne({ deviceId: allProcess[i].device.deviceId }).populate("conveyor");
+        
+            if (device && device.conveyor) {
+                let conveyorName = device.conveyor.name;
+        
+                if (!conveyorMap[conveyorName].userList) {
+                    conveyorMap[conveyorName].userList = [];
+                }
+        
+                // Check if the user already exists in the array
+                let existingUserIndex = conveyorMap[conveyorName].userList.findIndex(
+                    user => user.name === allProcess[i].user.name
+                );
+        
+                if (existingUserIndex !== -1) {
+                    // If user exists, update its count
+                    conveyorMap[conveyorName].userList[existingUserIndex].count += allProcess[i].processCount;
+                } else {
+                    // If user doesn't exist, add it to the array
+                    conveyorMap[conveyorName].userList.push({
+                        name: allProcess[i].user.name,
+                        count: allProcess[i].processCount
+                    });
+                }
+            }
+        }
+// Şimdi buraya tüm kayıp zamanları aktif çalışma zamanını ve toplam çalışma zamanını ekleyelim
+        for (let i = 0; i < allProcess.length; i++) {
+            let device = await Device.findOne({ deviceId: allProcess[i].device.deviceId }).populate("conveyor");
+        
+            if (device && device.conveyor) {
+                let conveyorName = device.conveyor.name;
+        
+                if (!conveyorMap[conveyorName].lostMinutes) {
+                    conveyorMap[conveyorName].lostMinutes = 0;
+                }
+        
+                if (!conveyorMap[conveyorName].activeMinutes) {
+                    conveyorMap[conveyorName].activeMinutes = 0;
+                }
+        
+                if (!conveyorMap[conveyorName].totalMinutes) {
+                    conveyorMap[conveyorName].totalMinutes = 0;
+                }
+        
+                // Tarihleri JavaScript Date nesnesine çevir
+                const dateObjects = allProcess[i].processDates.map(date => new Date(date)).sort((a, b) => a - b);
+        
+                // En erken ve en geç tarihi bul
+                const minDate = dateObjects[0];
+                const maxDate = dateObjects[dateObjects.length - 1];
+        
+                // Toplam süreyi dakika cinsinden hesapla
+                const totalMinutes = Math.floor((maxDate - minDate) / (1000 * 60));
+        
+                // Kaybolan zamanı hesapla
+                let lostMinutes = 0;
+                for (let i = 1; i < dateObjects.length; i++) {
+                    lostMinutes += Math.floor((dateObjects[i] - dateObjects[i - 1]) / (1000 * 60));
+                }
+        
+                // Çalışılan zamanı hesapla
+                const activeMinutes = totalMinutes - lostMinutes;
+        
+                conveyorMap[conveyorName].lostMinutes += lostMinutes;
+                conveyorMap[conveyorName].activeMinutes += activeMinutes;
+                conveyorMap[conveyorName].totalMinutes += totalMinutes;
+            }
+        }
+     
+/// Aslında bant bazlı olmayan processler içerisindeki kayıp zamanları aktif çalışma zamanını ve toplam çalışma zamanını ekleyelim
+        for (let i = 0; i < allProcess.length; i++) {
+            // Tarihleri JavaScript Date nesnesine çevir
+            const dateObjects = allProcess[i].processDates.map(date => new Date(date)).sort((a, b) => a - b);
+        
+            // En erken ve en geç tarihi bul
+            const minDate = dateObjects[0];
+            const maxDate = dateObjects[dateObjects.length - 1];
+        
+            // Toplam süreyi dakika cinsinden hesapla
+            const totalMinutes = Math.floor((maxDate - minDate) / (1000 * 60));
+        
+            // Kaybolan zamanı hesapla
+            let lostMinutes = 0;
+            for (let i = 1; i < dateObjects.length; i++) {
+                lostMinutes += Math.floor((dateObjects[i] - dateObjects[i - 1]) / (1000 * 60));
+            }
+        
+            // Çalışılan zamanı hesapla
+            const activeMinutes = totalMinutes - lostMinutes;
+        
+            allLostMinutes += lostMinutes;
+            allActiveMinutes += activeMinutes;
+            allTotalMinutes += totalMinutes;
+        }
+
+
+
+       
 
         // Objeyi array'e çevirme
         let conveyorAllProcessList = Object.values(conveyorMap);
@@ -124,6 +263,21 @@ router.get("/dashboard", async (req, res) => {
         res.json({
             allCompanyQuantity: allCompanyQuantity,
             conveyorAllProcessList: conveyorAllProcessList,
+            allDeciessCount: allDevices.length,
+            activeDeciessCount: allDevices.filter(device => device.isActive === true).length,
+            deactiveDeciessCount: allDevices.filter(device => device.isActive === false).length,
+            allUserCount: allUsers.length,
+            allOperationsCount: alloperations.length,
+            allConveyorCount: allConveyors.length,
+            allOperationsCount: alloperations.length,
+            allLostMinutes,
+            allActiveMinutes,
+            allTotalMinutes
+
+
+
+
+            
         });
     } catch (err) {
         res.status(500).json({ message: "Sunucu hatası" });
